@@ -25,11 +25,13 @@ function PLUGIN:Available(ctx)
             end
         end
         table.sort(result, compare_versions)
-        available_result = result
-        return result
+        if #result > 0 then
+            available_result = result
+            return result
+        end
     end
 
-    local resp, err = http.get({
+    resp, err = http.get({
         url = "https://api.github.com/repos/emscripten-core/emsdk/releases?per_page=100"
     })
 
@@ -53,11 +55,6 @@ function PLUGIN:Available(ctx)
     end
 
     table.sort(result, compare_versions)
-
-    if #result == 0 then
-        table.insert(result, { version = "latest", note = "Latest stable" })
-        table.insert(result, { version = "tot", note = "Tip of tree" })
-    end
 
     available_result = result
     return result
