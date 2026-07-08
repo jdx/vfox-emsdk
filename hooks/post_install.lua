@@ -1,8 +1,9 @@
 local os = require("os")
 
 function PLUGIN:PostInstall(ctx)
-    local mainPath = ctx.path
-    local version = ctx.version
+    local sdkInfo = ctx.sdkInfo[PLUGIN.name]
+    local mainPath = sdkInfo.path
+    local version = sdkInfo.version
 
     local extracted_dir = "emsdk-main"
     local extracted_path = mainPath .. "/" .. extracted_dir
