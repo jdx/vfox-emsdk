@@ -1,3 +1,15 @@
+local function shell_quote(value)
+    return "'" .. value:gsub("'", "'\\''") .. "'"
+end
+
+local function dir_exists(path)
+    if RUNTIME.osType == "windows" then
+        return os.execute('if exist "' .. path .. '\\*" exit /b 0 else exit /b 1') == true
+    end
+    local ret = os.execute("test -d " .. shell_quote(path))
+    return ret == true or ret == 0
+end
+
 function PLUGIN:EnvKeys(ctx)
     local mainPath = ctx.path
     local result = {}
@@ -12,29 +24,37 @@ function PLUGIN:EnvKeys(ctx)
     end
 
     local emscripten_root = mainPath .. "/upstream/emscripten"
-    local emscripten_f = io.open(emscripten_root, "r")
-    if emscripten_f then
-        emscripten_f:close()
+    if dir_exists(emscripten_root) then
         table.insert(result, { key = "EMSCRIPTEN_ROOT", value = emscripten_root })
         table.insert(result, { key = "EMCC_CACHE", value = emscripten_root .. "/cache" })
     end
 
     local llvm_bin = mainPath .. "/upstream/bin"
-    local llvm_f = io.open(llvm_bin, "r")
-    if llvm_f then
-        llvm_f:close()
+    if dir_exists(llvm_bin) then
         table.insert(result, { key = "LLVM", value = llvm_bin })
         table.insert(result, { key = "LLVM_ROOT", value = llvm_bin })
         table.insert(result, { key = "EM_LLVM_ROOT", value = llvm_bin })
     end
 
     local binaryen_root = mainPath .. "/upstream"
-    local binaryen_f = io.open(binaryen_root, "r")
-    if binaryen_f then
-        binaryen_f:close()
+    if dir_exists(binaryen_root) then
         table.insert(result, { key = "BINARYEN", value = binaryen_root })
         table.insert(result, { key = "BINARYEN_ROOT", value = binaryen_root })
         table.insert(result, { key = "EM_BINARYEN_ROOT", value = binaryen_root })
+    end
+
+    local node_root = mainPath .. "/node"
+    if RUNTIME.osType ~= "windows" and dir_exists(node_root) then
+        local handle = io.popen("find " .. shell_quote(node_root) .. " -mindepth 3 -maxdepth 3 -type f -name node | head -n 1")
+        if handle then
+            local node = handle:read("*l")
+            handle:close()
+            if node and node ~= "" then
+                table.insert(result, { key = "EMSDK_NODE", value = node })
+                table.insert(result, { key = "NODE_JS", value = node })
+                table.insert(result, { key = "PATH", value = node:match("(.+)/[^/]+$") })
+            end
+        end
     end
 
     if RUNTIME.osType == "windows" then
@@ -42,6 +62,7 @@ function PLUGIN:EnvKeys(ctx)
         table.insert(result, { key = "PATH", value = mainPath .. "\\upstream\\bin" })
         table.insert(result, { key = "PATH", value = mainPath .. "\\upstream\\emscripten" })
     else
+        table.insert(result, { key = "PATH", value = mainPath })
         table.insert(result, { key = "PATH", value = mainPath .. "/upstream/bin" })
         table.insert(result, { key = "PATH", value = mainPath .. "/upstream/emscripten" })
     end

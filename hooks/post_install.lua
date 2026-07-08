@@ -1,8 +1,9 @@
 local os = require("os")
 
 function PLUGIN:PostInstall(ctx)
-    local mainPath = ctx.path
-    local version = ctx.version
+    local sdkInfo = ctx.sdkInfo and ctx.sdkInfo[PLUGIN.name] or ctx
+    local mainPath = sdkInfo.path
+    local version = sdkInfo.version
 
     local extracted_dir = "emsdk-main"
     local extracted_path = mainPath .. "/" .. extracted_dir
@@ -28,10 +29,6 @@ function PLUGIN:PostInstall(ctx)
     end
 
     local install_version = version
-    if install_version == "latest" then
-        install_version = "latest"
-    end
-
     local ret
     if RUNTIME.osType == "windows" then
         ret = os.execute('cmd /c "cd /d ' .. mainPath .. ' && ' .. emsdk_cmd .. ' install ' .. install_version .. '"')

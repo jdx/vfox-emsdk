@@ -9,28 +9,33 @@ function PLUGIN:Available(ctx)
     end
 
     local resp, err = http.get({
+        url = "https://raw.githubusercontent.com/emscripten-core/emsdk/main/emscripten-releases-tags.json"
+    })
+
+    if err == nil and resp.status_code == 200 then
+        local result = {}
+        local seen = {}
+        for version in resp.body:gmatch('"(%d+%.%d+%.%d+)"%s*:') do
+            if not seen[version] then
+                seen[version] = true
+                table.insert(result, {
+                    version = version,
+                    note = ""
+                })
+            end
+        end
+        table.sort(result, compare_versions)
+        if #result > 0 then
+            available_result = result
+            return result
+        end
+    end
+
+    resp, err = http.get({
         url = "https://api.github.com/repos/emscripten-core/emsdk/releases?per_page=100"
     })
 
     if err ~= nil or resp.status_code ~= 200 then
-        local resp2, err2 = http.get({
-            url = "https://raw.githubusercontent.com/emscripten-core/emsdk/main/emscripten-releases-tags.json"
-        })
-        if err2 == nil and resp2.status_code == 200 then
-            local body = json.decode(resp2.body)
-            local result = {}
-            if body.releases then
-                for version, _ in pairs(body.releases) do
-                    table.insert(result, {
-                        version = version,
-                        note = ""
-                    })
-                end
-            end
-            table.sort(result, compare_versions)
-            available_result = result
-            return result
-        end
         return {}
     end
 
@@ -51,11 +56,6 @@ function PLUGIN:Available(ctx)
 
     table.sort(result, compare_versions)
 
-    if #result == 0 then
-        table.insert(result, { version = "latest", note = "Latest stable" })
-        table.insert(result, { version = "tot", note = "Tip of tree" })
-    end
-
     available_result = result
     return result
 end
@@ -63,9 +63,6 @@ end
 function compare_versions(a, b)
     local v1 = type(a) == "table" and a.version or a
     local v2 = type(b) == "table" and b.version or b
-
-    if v1 == "latest" or v1 == "tot" then return true end
-    if v2 == "latest" or v2 == "tot" then return false end
 
     local v1_parts = {}
     for part in string.gmatch(v1, "[^.]+") do
