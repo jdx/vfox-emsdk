@@ -1,0 +1,60 @@
+name: Main workflow
+
+on:
+  pull_request:
+  push:
+  schedule:
+    - cron: 0 0 * * 5
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      MISE_USE_VERSIONS_HOST: 0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          cache: false
+
+      - name: Setup plugin (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p ~/.local/share/mise/plugins
+          ln -s $PWD ~/.local/share/mise/plugins/emsdk
+
+      - name: Setup plugin (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $pluginDir = "$env:LOCALAPPDATA\mise\plugins"
+          New-Item -ItemType Directory -Force -Path $pluginDir
+          New-Item -ItemType Junction -Path "$pluginDir\emsdk" -Target $PWD
+
+      - name: Validate mise ls-remote works
+        shell: bash
+        run: |
+          mise ls-remote emsdk | head -20
+          mise ls-remote emsdk | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | head -1
+          mise ls-remote emsdk | grep -E '^4\.0\.0$'
+
+      # emsdk downloads prebuilt toolchains, so a pinned release is cheap
+      # compared to a source build.
+      - name: Test emsdk installation
+        shell: bash
+        run: |
+          mise i emsdk@4.0.0
+          mise x emsdk@4.0.0 -- emcc --version | grep -E '4\.0\.0'
