@@ -8,7 +8,7 @@ function PLUGIN:Available(ctx)
         return available_result
     end
 
-    local resp, err = http.get({
+    local resp, err = http.try_get({
         url = "https://raw.githubusercontent.com/emscripten-core/emsdk/main/emscripten-releases-tags.json"
     })
 
@@ -31,7 +31,7 @@ function PLUGIN:Available(ctx)
         end
     end
 
-    resp, err = http.get({
+    resp, err = http.try_get({
         url = "https://api.github.com/repos/emscripten-core/emsdk/releases?per_page=100"
     })
 
